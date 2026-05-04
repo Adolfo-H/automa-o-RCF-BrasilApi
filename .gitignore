@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+leads_exportados.xlsx
+empresas_0.csv
+estabelecimentos_0.csv
