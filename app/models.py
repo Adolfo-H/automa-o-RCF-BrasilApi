@@ -24,4 +24,6 @@ class LeadEmpresa(Base):
     email: Mapped[str | None]
     capital_social: Mapped[float | None] = mapped_column(Numeric(18, 2))
     socios: Mapped[str | None]
+    origem_match: Mapped[str | None] = mapped_column(String(20))          # 'PRINCIPAL' ou 'SECUNDARIO'
+    cnae_match_secundario: Mapped[str | None] = mapped_column(String(255)) # CNAE do filtro achado nos secundários
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
