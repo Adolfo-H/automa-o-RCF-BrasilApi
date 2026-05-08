@@ -224,3 +224,102 @@ python exportar.py
 | BrasilAPI | Enriquecimento cadastral |
 | SerpAPI | Presença digital e web scraping |
 | OpenPyXL | Geração de planilhas Excel |
+
+### 🧠 Deduplicação Inteligente com HubSpot
+
+O pipeline agora conta com um mecanismo avançado de deduplicação comercial integrado ao CRM.
+
+Antes da persistência dos leads no banco, o sistema realiza automaticamente uma verificação contra uma base auxiliar exportada do HubSpot, evitando retrabalho operacional e duplicidade comercial.
+
+#### ✅ Como funciona
+
+O processo realiza:
+
+* importação automática de empresas já existentes no HubSpot
+* extração e normalização de domínios corporativos
+* comparação inteligente via:
+
+  * e-mail corporativo
+  * domínio institucional
+  * site da empresa
+
+Caso o domínio já exista no CRM, o lead é automaticamente descartado antes da gravação no banco.
+
+#### 🚀 Benefícios Operacionais
+
+A funcionalidade reduz significativamente:
+
+* duplicidade de prospecção
+* overlap entre SDRs/comercial
+* desperdício de requisições em APIs
+* retrabalho operacional
+* enriquecimento desnecessário
+
+Além disso, melhora a qualidade da base e mantém o pipeline alinhado com o funil comercial já existente no HubSpot.
+
+#### 🗄️ Estrutura Auxiliar
+
+Tabela dedicada para sincronização:
+
+```sql
+hubspot_empresas
+```
+
+Campos principais:
+
+| Campo          | Descrição                         |
+| -------------- | --------------------------------- |
+| `nome_empresa` | Nome da empresa no CRM            |
+| `dominio`      | Domínio institucional normalizado |
+
+#### ⚙️ Fluxo da Deduplicação
+
+```text
+Receita Federal
+      ↓
+Enriquecimento
+      ↓
+Extração de domínio
+      ↓
+Comparação com HubSpot
+      ↓
+Lead já existe?
+   ├── SIM → descarta
+   └── NÃO → salva no PostgreSQL
+```
+
+#### 📂 Estrutura Adicionada
+
+```text
+app/
+├── hubspot/
+│   ├── __init__.py
+│   └── deduplicador.py
+```
+
+#### 🔄 Importação da Base HubSpot
+
+O sistema utiliza um relatório exportado do HubSpot em Excel para alimentar a tabela auxiliar de deduplicação.
+
+Exemplo:
+
+```bash
+python app/scripts/importar_hubspot.py
+```
+
+#### 📈 Resultado
+
+Durante o processamento, o pipeline informa automaticamente:
+
+* quantidade de domínios carregados
+* leads descartados por já existirem no CRM
+* quantidade efetivamente persistida
+
+Exemplo de execução:
+
+```text
+1319 dominios carregados do HubSpot.
+
+Lote 1...
+25 leads removidos por ja existirem no HubSpot.
+```
