@@ -1,217 +1,391 @@
-# 📊 Leads — Inteligência de Dados & Prospecção
+# Leads Tributarios
 
-Pipeline de alta performance desenvolvido em Python para extração, filtragem, enriquecimento de dados da base pública da Receita Federal e validação automatizada de canais de contato. O projeto transforma dados brutos em leads qualificados com foco em inteligência comercial e prospecção B2B de grande porte.
+Pipeline em Python para gerar leads B2B a partir de bases públicas da Receita Federal, enriquecer dados via BrasilAPI, eliminar duplicidades com base já existente no HubSpot, validar números no WhatsApp Web e exportar o resultado para Excel.
 
----
+O projeto foi estruturado para operação prática: você alimenta a pasta `data/` com os arquivos da Receita, roda o pipeline principal, valida canais quando necessário e exporta a base final para uso comercial.
 
-## 📌 Visão Geral
+## Objetivo
 
-O **Leads** automatiza o ciclo completo de inteligência de dados:
+O sistema transforma dados brutos de empresas em uma base de prospecção mais utilizável, aplicando:
 
-- **Ingestão e Filtragem:** Leitura analítica de bases brutas da Receita Federal focando em empresas de grande porte
-- **Deduplicação Estratégica:** Cruzamento de domínios em tempo real com a base existente no CRM HubSpot
-- **Enriquecimento Avançado:** Consultas assíncronas concorrentes para estruturação de dados societários e de contato
-- **Validação de Canais:** Verificação automatizada via browser para confirmar quais leads possuem contas ativas de WhatsApp
+- filtro por CNAE, UF, porte, capital social e natureza jurídica;
+- deduplicação por CNPJ já salvo no banco;
+- deduplicação por domínio já existente no HubSpot;
+- enriquecimento de dados cadastrais via BrasilAPI;
+- validação operacional de WhatsApp via automação no navegador;
+- exportação da base tratada para `.xlsx`.
 
----
+## Fluxo do projeto
 
-## ✨ Diferenciais do Projeto
-
-### 🔎 Filtro Inteligente de Origem
-
-Redução automática de ruído ao processar apenas estabelecimentos **Matriz (0001)**, evitando duplicidade de filiais, desperdício de requisições em APIs e inconsistências comerciais.
-
-### ⚡ Arquitetura Escalável e Assíncrona
-
-Utilização de `ThreadPoolExecutor` para consultas massivas paralelas na BrasilAPI (CNPJ v1), com controle rígido de *Rate Limit*, travas de concorrência (`threading.Lock`) e *Backoff* incremental para proteção contra erros `429`.
-
-### 🛡️ Validação de WhatsApp Baseada em Interface (Playwright)
-
-Automação ponta a ponta que varre a base em lotes, simulando navegação humana e interpretando respostas visuais do WhatsApp Web para marcar o status de conectividade real do lead, contornando travas de interface.
-
-### 🗄️ Persistência Robusta
-
-Gerenciamento transacional completo via **PostgreSQL** com cláusulas `ON CONFLICT DO NOTHING`, prevenção de duplicidades por chave única (`cnpj`), controle de estados (`None` / `True` / `False`) e isolamento de escopo por sessões (`SessionLocal`).
-
----
-
-## 📂 Estrutura do Projeto
-
+```text
+Arquivos CSV da Receita
+        |
+        v
+Leitura e filtros iniciais
+        |
+        v
+Deduplicação por CNPJ já salvo
+        |
+        v
+Enriquecimento concorrente via BrasilAPI
+        |
+        v
+Deduplicação por domínio do HubSpot
+        |
+        v
+Persistência no PostgreSQL
+        |
+        +--> Validação de WhatsApp Web
+        |
+        +--> Enriquecimento manual de presença online
+        |
+        +--> Exportação para Excel
 ```
+
+## Stack
+
+- Python
+- PostgreSQL
+- SQLAlchemy
+- Pandas
+- Requests
+- Playwright
+- Rich
+- Python Dotenv
+
+## Estrutura do repositório
+
+```text
 leadstributarios/
-├── app/
-│   ├── hubspot/
-│   │   └── deduplicador.py     # Sincronização e extração de domínios do CRM HubSpot
-│   ├── brasilapi.py            # Motor assíncrono de consulta ao CNPJ com controle de rate limit
-│   ├── config.py               # Central de variáveis de ambiente, filtros (CNAEs, UFs, Portes)
-│   ├── database.py             # Configuração da Engine do SQLAlchemy e SessionLocal (Postgres)
-│   ├── models.py               # Mapeamento declarativo de tabelas (Schema das tabelas)
-│   ├── pipeline.py             # Orquestrador de threads concorrentes para enriquecimento de lotes
-│   ├── receita.py              # Parser analítico e filtros matemáticos dos CSVs da Receita
-│   └── utils.py                # Utilitários de strings (extração de domínios e tratamento de QSA)
-├── data/                       # Diretório reservado para os arquivos CSV brutos da Receita Federal
-├── whatsapp_session/           # Diretório de persistência de estado do navegador (Session Cookies)
-├── criar_tabelas.py            # Inicializador de tabelas e injeção de patches estruturais de colunas
-├── exportar.py                 # Exportador de leads qualificados para relatórios Excel (.xlsx)
-├── main.py                     # Script principal de execução do pipeline de dados da Receita
-├── salvar.py                   # Repositório de persistência em lote via inserções nativas Postgres
-└── validar_whatsapp.py         # Script de validação visual e automação do WhatsApp Web
+|-- app/
+|   |-- hubspot/
+|   |   `-- deduplicador.py
+|   |-- scripts/
+|   |   `-- importar_hubspot.py
+|   |-- brasilapi.py
+|   |-- config.py
+|   |-- database.py
+|   |-- enrichment.py
+|   |-- enriquecer_presenca_online.py
+|   |-- models.py
+|   |-- pipeline.py
+|   |-- receita.py
+|   `-- utils.py
+|-- data/
+|-- whatsapp_session/
+|-- consultar.py
+|-- criar_tabelas.py
+|-- exportar.py
+|-- limpar_dados.py
+|-- main.py
+|-- remover_empresa.py
+|-- salvar.py
+|-- teste_conexao.py
+|-- validar_whatsapp.py
+`-- requirements.txt
 ```
 
----
+## Banco de dados
 
-## ⚙️ Instalação e Configuração
+O projeto usa PostgreSQL via `DATABASE_URL`.
 
-### 📋 Pré-requisitos
+As tabelas principais são:
 
-- **Python 3.11+** (Recomendado 3.12+)
-- **PostgreSQL** ativo e configurado
-- Arquivos `.csv` de estabelecimentos da Receita Federal dentro da pasta `data/`
+### `leads_empresas`
 
-### 🔧 Instalação das Dependências
+Armazena os leads gerados pelo pipeline, com campos como:
 
-Abra o terminal na raiz do projeto e instale as bibliotecas necessárias:
+- `cnpj`
+- `razao_social`
+- `nome_fantasia`
+- `cnae_principal`
+- `natureza_juridica`
+- `uf`
+- `municipio`
+- `porte`
+- `telefone`
+- `email`
+- `capital_social`
+- `socios`
+- `origem_match`
+- `cnae_match_secundario`
+- `whatsapp_valido`
+- `created_at`
+
+### `hubspot_empresas`
+
+Tabela de apoio para deduplicação por domínio, com:
+
+- `nome_empresa`
+- `dominio`
+- `created_at`
+
+## Pré-requisitos
+
+- Python 3.11 ou superior
+- PostgreSQL acessível
+- arquivos CSV da Receita Federal no diretório `data/`
+- Chromium do Playwright instalado para o validador de WhatsApp
+
+## Instalação
+
+Crie e ative um ambiente virtual, depois instale as dependências:
 
 ```bash
-# Instalação das bibliotecas do ecossistema Python
-pip install pandas sqlalchemy requests openpyxl tqdm rich python-dotenv playwright
-
-# Instalação obrigatória do driver do Chromium para o Playwright
+pip install -r requirements.txt
+pip install openpyxl playwright serpapi
 python -m playwright install chromium
 ```
 
-### 🗂️ Configuração das Variáveis de Ambiente
+Observação: `requirements.txt` hoje cobre apenas o núcleo do pipeline. Para usar exportação Excel, validação de WhatsApp e busca de presença online, você também precisa das bibliotecas acima.
 
-Crie um arquivo `.env` na raiz do projeto e configure as credenciais operacionais:
+## Configuração
+
+Crie um arquivo `.env` na raiz do projeto com base em `.env.example`.
+
+Exemplo:
 
 ```env
-DATABASE_URL=postgresql://usuario:senha@localhost:5432/seu_banco
-MAX_WORKERS=30
-BATCH_SIZE=200
-REQUEST_INTERVAL_SECONDS=0.1
+DATABASE_URL=postgresql+psycopg2://usuario:senha@host:5432/banco
+MAX_WORKERS=2
+BATCH_SIZE=50
+REQUEST_INTERVAL_SECONDS=1.0
 REQUEST_TIMEOUT_SECONDS=20
+MAX_RETRIES=5
+BACKOFF_BASE_SECONDS=3.0
+SERP_API_KEY=sua_chave_serpapi
 ```
 
----
+### Variáveis importantes
 
-## 🔄 Fluxo de Operação do Pipeline
+- `DATABASE_URL`: conexão com o PostgreSQL.
+- `MAX_WORKERS`: paralelismo do enriquecimento na BrasilAPI.
+- `BATCH_SIZE`: tamanho de cada lote processado.
+- `REQUEST_INTERVAL_SECONDS`: intervalo mínimo entre chamadas à BrasilAPI.
+- `REQUEST_TIMEOUT_SECONDS`: timeout por requisição.
+- `MAX_RETRIES`: total de tentativas em caso de falha.
+- `BACKOFF_BASE_SECONDS`: base do backoff progressivo.
+- `SERP_API_KEY`: necessária para o módulo de presença online.
 
-### 1️⃣ Inicialização do Schema do Banco
+## Dados de entrada
 
-Cria a estrutura de tabelas relacionais (`leads_empresas` e `hubspot_empresas`) e aplica correções de colunas necessárias como `natureza_juridica` e `whatsapp_valido`.
+O pipeline principal espera pares de arquivos no diretório `data/` com o padrão:
+
+```text
+data/estabelecimentos_<indice>.csv
+data/empresas_<indice>.csv
+```
+
+Exemplo:
+
+```text
+data/estabelecimentos_1.csv
+data/empresas_1.csv
+```
+
+O `main.py` percorre automaticamente todos os pares encontrados.
+
+## Regras de filtragem atuais
+
+As regras principais ficam em [app/config.py](/abs/path/c:/Users/adolf/OneDrive/leadstributarios/app/config.py) e [app/receita.py](/abs/path/c:/Users/adolf/OneDrive/leadstributarios/app/receita.py).
+
+Hoje o projeto trabalha com:
+
+- CNAEs específicos definidos em `CNAES`;
+- UFs definidas em `UFS`;
+- porte `5`;
+- capital social mínimo de `1_000_000.0`;
+- opção de aceitar capital social igual a zero;
+- naturezas jurídicas específicas em `NATUREZAS_JURIDICAS`;
+- situação cadastral ativa (`02`).
+
+Além disso, o código identifica se o match do CNAE veio do principal ou dos secundários, preenchendo:
+
+- `origem_match`
+- `cnae_match_secundario`
+
+## Como executar
+
+### 1. Testar conexão com o banco
+
+```bash
+python teste_conexao.py
+```
+
+### 2. Criar ou atualizar as tabelas
 
 ```bash
 python criar_tabelas.py
 ```
 
-### 2️⃣ Execução do Pipeline Principal
+Esse script cria as tabelas mapeadas no ORM e também garante a existência das colunas `natureza_juridica` e `whatsapp_valido`.
 
-O fluxo executa a leitura inteligente dos blocos de arquivos na pasta `data/`, aplica os filtros de corte por capital social e porte grande, e inicia o motor concorrente:
+### 3. Importar base de domínios do HubSpot
 
-```
-[ Arquivos CSV ]
-     ↓
-[ Filtragem Interna ] ─→ Apenas Matrizes (0001) + Capital Social ≥ R$ 1MM
-     ↓
-[ Deduplicação HubSpot ] ─→ Remove leads que já possuem o mesmo domínio no CRM
-     ↓
-[ Enriquecimento Thread ] ─→ Consultas paralelas à BrasilAPI com Trava de Taxa (Lock)
-     ↓
-[ Gravação Postgres ] ─→ Inserção via ON CONFLICT DO NOTHING (Previne duplicar CNPJ)
+Se você tiver o arquivo de exportação do CRM no caminho esperado pelo script:
+
+```bash
+python app/scripts/importar_hubspot.py
 ```
 
-Para iniciar o processamento:
+Esse processo popula `hubspot_empresas` para que o pipeline remova leads cujo domínio já exista no HubSpot.
+
+### 4. Rodar o pipeline principal
 
 ```bash
 python main.py
 ```
 
----
+O `main.py` faz:
 
-## 🛡️ Engenharia do Módulo de Validação
+- leitura dos pares de arquivos da Receita;
+- aplicação dos filtros de negócio;
+- remoção de CNPJs já salvos no banco;
+- enriquecimento em paralelo via BrasilAPI;
+- fallback para dados originais quando necessário;
+- extração de domínio a partir do e-mail;
+- exclusão de leads com domínio já existente no HubSpot;
+- inserção no PostgreSQL com `ON CONFLICT DO NOTHING`.
 
-### Validação de WhatsApp (validar_whatsapp.py)
-
-Para evitar gastos desnecessários com APIs de envio e validação de terceiros, o sistema utiliza uma camada de automação visual baseada em interface web via Playwright.
-
-#### 🧩 Como Funciona a Fila de Validação
-
-O script opera em lotes dinâmicos de 100 leads por vez por motivos de segurança do chip corporativo. Ele realiza um filtro no banco buscando apenas registros com telefone existente e campo de validação nulo:
-
-```python
-# A fila consome apenas o estado indefinido (None)
-select(LeadEmpresa).where(
-    LeadEmpresa.telefone.isnot(None), 
-    LeadEmpresa.whatsapp_valido.is_(None)
-).limit(100)
-```
-
-Toda vez que o script finaliza, você pode rodá-lo novamente e ele consumirá as próximas 100 empresas da fila sem repetir ou sobrecarregar registros antigos.
-
-#### 🦾 Arquitetura Anti-Crash e Resolução de Modais
-
-O script foi projetado para lidar com as variações estruturais dinâmicas da interface do WhatsApp Web, protegendo a execução contra o encerramento inesperado:
-
-- **Detecção de Estado por Seletores Compostos:** Aguarda concorrentemente a renderização da conversa aberta (`#main`) ou a exibição de botões de erro (`button:has-text("OK")`)
-- **Isolamento de Modais Temporários:** Filtra cirurgicamente o texto interno de contêineres de animação através de métodos estruturados (`.filter(has_text="não está no WhatsApp")`), ignorando modais intermediários
-- **Limpeza e Desengasgo de Interface:** Sempre que um número é detectado como inválido, o robô clica fisicamente no botão OK para fechar o pop-up, limpando o DOM para o próximo registro
-- **Sessão Persistente:** Salva cookies de autenticação na pasta `whatsapp_session/`. Você lê o QR Code apenas na primeira execução; nas subsequentes, o robô entra conectado diretamente
-
-Para rodar a validação de canais ativos:
+### 5. Validar WhatsApp dos leads
 
 ```bash
 python validar_whatsapp.py
 ```
 
-#### 💡 Nota Operacional
+O script:
 
-Caso deseje resetar empresas que falharam por lentidão técnica ou internet oscilante para reavaliá-las no próximo lote:
+- busca registros com `telefone` preenchido e `whatsapp_valido IS NULL`;
+- abre o WhatsApp Web com sessão persistida em `whatsapp_session/`;
+- permite leitura de QR Code apenas na primeira vez;
+- marca o lead como `True`, `False` ou mantém `NULL` quando houver timeout.
 
-```sql
-UPDATE leads_empresas SET whatsapp_valido = NULL WHERE whatsapp_valido = FALSE;
-```
+Observações operacionais:
 
----
+- o navegador roda em modo visível (`headless=False`);
+- existe delay entre validações para reduzir risco de bloqueio;
+- a sessão do WhatsApp é reaproveitada entre execuções.
 
-## 📈 Exportação e Inteligência Comercial
-
-O script final compila toda a inteligência armazenada no banco de dados estruturado e exporta para relatórios corporativos em formato Excel, permitindo a distribuição imediata para times de prospecção.
+### 6. Exportar a base final
 
 ```bash
 python exportar.py
 ```
 
-### 📋 Layout do Relatório Gerado (leads_exportados.xlsx)
+Por padrão o arquivo gerado é `leads_exportados.xlsx`.
 
-| Grupo de Dados | Atributos | Objetivo Comercial |
-|---|---|---|
-| **Identificação Fiscal** | `cnpj`, `razao_social`, `nome_fantasia`, `natureza_juridica` | Validação cadastral e segmentação |
-| **Classificação de Mercado** | `cnae_principal`, `cnae_match_secundario`, `porte`, `capital_social` | Verificação de fit de receita e tamanho da conta |
-| **Canais de Contato** | `telefone`, `email`, `uf`, `municipio` | Dados de contato originais purificados |
-| **Qualificação Digital** | `whatsapp_valido` | Filtro operacional: Alocação de contatos válidos (True/False) |
-| **Estrutura de Decisões** | `socios` | Mapeamento de tomadores de decisão (QSA) para abordagem de Cold Calling |
+## Scripts auxiliares
 
----
+### `consultar.py`
 
-## 🛠️ Stack Tecnológica
+Lista todos os leads ou busca por termo em `razao_social`, `municipio` ou `uf`.
 
-| Tecnologia | Propósito |
-|---|---|
-| **Python 3.12** | Núcleo de desenvolvimento e manipulação assíncrona |
-| **PostgreSQL** | Armazenamento relacional persistente da base purificada de leads |
-| **SQLAlchemy** | Camada de abstração de dados (ORM) e gerenciador de conexões em pool |
-| **Playwright (Python)** | Engine de automação web em headless/headful para simulação de comportamento humano |
-| **Pandas** | Estruturação de dados multidimensionais e tratamento de arquivos textuais em lote |
-| **Rich** | Customização gráfica de logs em console para rastreamento em tempo real do pipeline |
+```bash
+python consultar.py
+python consultar.py goias
+```
 
----
+### `limpar_dados.py`
 
-## 📝 Licença
+Procura razões sociais duplicadas e remove registros excedentes, tentando preservar a matriz cujo CNPJ tenha ordem `0001`.
 
-Projeto de uso interno. Todos os direitos reservados.
+```bash
+python limpar_dados.py
+```
 
----
+### `remover_empresa.py`
 
-## 👥 Suporte e Contribuições
+Remove empresas manualmente por razão social exata, ignorando diferença entre maiúsculas e minúsculas.
 
-Para dúvidas, sugestões ou reportar problemas, abra uma issue no repositório do projeto.
+```bash
+python remover_empresa.py
+```
+
+### `app/enriquecer_presenca_online.py`
+
+Executa um enriquecimento manual sob demanda para preencher:
+
+- `site`
+- `linkedin`
+- `tem_site`
+- `tem_linkedin`
+
+Esse script usa a SerpAPI e pede os IDs dos leads via terminal.
+
+Importante: o modelo ORM atual em [app/models.py](/abs/path/c:/Users/adolf/OneDrive/leadstributarios/app/models.py) não declara essas colunas, então esse fluxo depende de elas já existirem no banco.
+
+## Arquitetura dos módulos principais
+
+### `app/receita.py`
+
+Responsável por:
+
+- ler os CSVs da Receita em chunks;
+- combinar estabelecimentos com empresas;
+- aplicar filtros de negócio;
+- montar `CNPJ_COMPLETO`;
+- identificar match por CNAE principal ou secundário.
+
+### `app/brasilapi.py`
+
+Responsável por:
+
+- consultar `https://brasilapi.com.br/api/cnpj/v1`;
+- respeitar um intervalo mínimo entre chamadas;
+- aplicar retries com backoff;
+- tratar `429 Too Many Requests`.
+
+### `app/pipeline.py`
+
+Responsável por:
+
+- dividir o DataFrame em lotes;
+- enriquecer cada lote em paralelo com `ThreadPoolExecutor`;
+- transformar a resposta da API em registros prontos para persistência.
+
+### `salvar.py`
+
+Responsável por:
+
+- salvar registros em lote no PostgreSQL;
+- evitar duplicidade por `cnpj` com `ON CONFLICT DO NOTHING`;
+- consultar CNPJs já existentes antes do processamento.
+
+### `app/hubspot/deduplicador.py`
+
+Responsável por:
+
+- carregar os domínios já cadastrados na tabela `hubspot_empresas`;
+- permitir remoção preventiva de leads que já existem no CRM.
+
+## Saídas geradas
+
+As principais saídas do projeto são:
+
+- registros persistidos em `leads_empresas`;
+- base deduplicada de domínios em `hubspot_empresas`;
+- planilha `leads_exportados.xlsx`;
+- sessão persistida do WhatsApp em `whatsapp_session/`.
+
+## Limitações e pontos de atenção
+
+- `requirements.txt` não lista todas as dependências usadas pelos scripts auxiliares.
+- O módulo de presença online depende de colunas no banco que não estão refletidas no ORM atual.
+- O script de importação do HubSpot usa um nome de arquivo fixo dentro de `data/`.
+- O validador de WhatsApp depende da estrutura visual atual do WhatsApp Web e pode exigir ajustes se a interface mudar.
+- Há regras de negócio hardcoded em `app/config.py`; para mudar segmentação, é melhor revisar esse arquivo antes de rodar o pipeline.
+
+## Sequência recomendada de uso
+
+1. Configurar `.env`.
+2. Validar conexão com o banco.
+3. Criar tabelas.
+4. Importar domínios do HubSpot.
+5. Colocar os arquivos da Receita em `data/`.
+6. Rodar `main.py`.
+7. Rodar `validar_whatsapp.py`, se quiser qualificar o canal.
+8. Rodar `exportar.py`.
+
+## Licença
+
+Projeto de uso interno.

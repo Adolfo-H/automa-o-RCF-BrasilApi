@@ -88,7 +88,7 @@ def main():
         stmt = select(LeadEmpresa).where(
             LeadEmpresa.telefone.isnot(None),
             LeadEmpresa.whatsapp_valido.is_(None)
-        ).limit(100)
+        ).limit(569)
         
         leads_pendentes = db.scalars(stmt).all()
 
