@@ -15,7 +15,7 @@ CNAES = [
     "1071600"  # Fabricação de açúcar VHP (Very High Polarization)
 ]
 
-UFS = ["PR", "SP", "MT", "GO", "RS", "MG", "DF", "BA", "PE", "PA", "AM", "RO", "AP", "MS", "TO"]
+UFS = ["PR" "SP", "MT", "GO", "RS", "MG", "DF", "BA", "PE", "PA", "AM", "RO", "AP", "MS", "TO"]
 
 PORTES = [5]  
 CAPITAL_SOCIAL_MINIMO = 1_000_000.0

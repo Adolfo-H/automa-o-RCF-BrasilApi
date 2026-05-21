@@ -59,7 +59,9 @@ class LeadEmpresa(Base):
         default=datetime.utcnow
     )
 
-
+    whatsapp_valido: Mapped[bool | None] = mapped_column(
+        default=None    
+    )
 class HubspotEmpresa(Base):
     __tablename__ = "hubspot_empresas"
 
